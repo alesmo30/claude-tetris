@@ -1,0 +1,61 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # aplicar labels + comentar
+      id-token: write
+    steps:
+      - name: Ensure custom labels exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          create() { gh label create "$1" --repo "${{ github.repository }}" --color "$2" --description "$3" --force; }
+          create "severity:low"      "c2e0c6" "Impacto menor"
+          create "severity:medium"   "fbca04" "Impacto moderado"
+          create "severity:high"     "d93f0b" "Impacto alto"
+          create "severity:critical" "b60205" "Bloqueante / critico"
+          create "needs-info"        "d876e3" "Falta informacion del reporter"
+          create "needs-repro"       "e99695" "Falta pasos de reproduccion"
+          create "triaged"           "0e8a16" "Revisado por triage"
+          create "area:gameplay"     "1d76db" "Logica de juego"
+          create "area:rendering"    "5319e7" "Canvas / dibujado"
+          create "area:input"        "006b75" "Controles / teclado"
+          create "area:scoring"      "0052cc" "Puntuacion / nivel"
+
+      - name: Run Claude triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(gh label list:*)"'
+          prompt: |
+            Eres el triager de issues del repo ${{ github.repository }}.
+            Issue a triar: #${{ github.event.issue.number }}
+
+            Contexto del proyecto: Tetris en JavaScript vanilla (index.html, style.css,
+            game.js). Ver CLAUDE.md para arquitectura si existe en el repo.
+
+            Pasos:
+            1. Lee el issue con `gh issue view ${{ github.event.issue.number }}`.
+            2. Clasificalo aplicando SOLO etiquetas existentes (revisa con `gh label list`):
+               - tipo: bug / enhancement / documentation / question
+               - severity:* (obligatoria si es bug)
+               - area:* segun la zona de game.js afectada (gameplay/rendering/input/scoring)
+               - needs-info o needs-repro si el reporte esta incompleto; si no, triaged
+               Aplica con `gh issue edit ${{ github.event.issue.number }} --add-label "a,b,c"`.
+            3. Publica UN comentario de VEREDICTO TECNICO con `gh issue comment`. Este
+               texto es contexto para un futuro arreglo, NO el arreglo en si. Incluye:
+               - Resumen de una linea del problema.
+               - Analisis tecnico: archivo/funcion probable de game.js implicada y por que.
+               - Veredicto: valido / necesita info / duplicado / fuera de alcance.
+               - Contexto para el fix futuro: pistas de donde tocar, riesgos, casos borde.
+               Firma el comentario como triage automatico de Claude.
+
+            NO modifiques codigo. NO abras ni propongas crear un PR. Solo etiqueta y
+            comenta el veredicto tecnico.
