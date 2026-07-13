@@ -2,7 +2,7 @@ name: Claude Issue Triage
 
 on:
   issues:
-    types: [opened]
+    types: [opened, edited]
 
 jobs:
   triage:
@@ -40,6 +40,11 @@ jobs:
 
             Contexto del proyecto: Tetris en JavaScript vanilla (index.html, style.css,
             game.js). Ver CLAUDE.md para arquitectura si existe en el repo.
+
+            Este evento puede ser apertura o edicion del issue (`${{ github.event.action }}`).
+            Si es una edicion, re-evalua labels y solo publica un nuevo comentario de
+            veredicto si el analisis cambia de forma relevante (no repitas comentarios
+            identicos en cada edicion menor).
 
             Pasos:
             1. Lee el issue con `gh issue view ${{ github.event.issue.number }}`.
