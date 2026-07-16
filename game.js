@@ -15,6 +15,17 @@ const COLORS = [
   '#ffb74d', // L - orange
 ];
 
+const PASTEL_COLORS = [
+  null,
+  '#a7e3e8', // I - pastel cyan
+  '#fff0b3', // O - pastel yellow
+  '#d9b3e0', // T - pastel purple
+  '#bfe3bf', // S - pastel green
+  '#f2b8b8', // Z - pastel red
+  '#c2c8ec', // J - pastel indigo
+  '#ffd6a8', // L - pastel orange
+];
+
 const PIECES = [
   null,
   [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], // I
@@ -50,13 +61,16 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggleBtn = document.getElementById('theme-toggle');
+const skinSelect = document.getElementById('skin-select');
 const powerBanner = document.getElementById('power-banner');
 const nextPowerEl = document.getElementById('next-power');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let pieceSeq, effects, frozenUntil, freezeRemaining;
+let currentSkin = 'retro';
 
 const THEME_KEY = 'tetris-theme';
+const SKIN_KEY = 'tetris-skin';
 
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
@@ -72,6 +86,22 @@ themeToggleBtn.addEventListener('click', () => {
   const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
   applyTheme(next);
   localStorage.setItem(THEME_KEY, next);
+});
+
+function applySkin(skin) {
+  currentSkin = skin;
+  document.documentElement.setAttribute('data-skin', skin);
+  if (skinSelect) skinSelect.value = skin;
+}
+
+function initSkin() {
+  applySkin(localStorage.getItem(SKIN_KEY) || 'retro');
+}
+
+skinSelect.addEventListener('change', () => {
+  const skin = skinSelect.value;
+  applySkin(skin);
+  localStorage.setItem(SKIN_KEY, skin);
 });
 
 function createBoard() {
@@ -291,14 +321,55 @@ function updateHUD() {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
+  const palette = currentSkin === 'pastel' ? PASTEL_COLORS : COLORS;
+  const color = palette[colorIndex];
+  const px = x * size + 1;
+  const py = y * size + 1;
+  const s = size - 2;
+  const useRoundRect = currentSkin === 'pastel' && typeof context.roundRect === 'function';
+
+  context.save();
   context.globalAlpha = alpha ?? 1;
+
+  if (currentSkin === 'neon') {
+    context.shadowColor = color;
+    context.shadowBlur = 12;
+  }
+
   context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
+  if (useRoundRect) {
+    context.beginPath();
+    context.roundRect(px, py, s, s, 6);
+    context.fill();
+  } else {
+    context.fillRect(px, py, s, s);
+  }
+
   // highlight
+  context.shadowBlur = 0;
   context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
-  context.globalAlpha = 1;
+  if (useRoundRect) {
+    context.beginPath();
+    context.roundRect(px, py, s, 4, [6, 6, 0, 0]);
+    context.fill();
+  } else {
+    context.fillRect(px, py, s, 4);
+  }
+
+  if (currentSkin === 'pixel') {
+    // checkerboard texture overlay
+    context.fillStyle = 'rgba(0,0,0,0.15)';
+    const cell = Math.max(2, Math.floor(size / 6));
+    for (let ty = 0; ty < s; ty += cell) {
+      for (let tx = 0; tx < s; tx += cell) {
+        if (((tx / cell) + (ty / cell)) % 2 === 0) {
+          context.fillRect(px + tx, py + ty, cell, cell);
+        }
+      }
+    }
+  }
+
+  context.restore();
 }
 
 function drawGrid() {
@@ -381,8 +452,9 @@ function drawEffects(now) {
         const alpha = 1 - t;
         ctx.save();
         ctx.globalAlpha = alpha;
+        const palette = currentSkin === 'pastel' ? PASTEL_COLORS : COLORS;
         for (const cell of fx.cells) {
-          ctx.fillStyle = COLORS[cell.color];
+          ctx.fillStyle = palette[cell.color];
           ctx.fillRect(cell.c * BLOCK + 1, cell.r * BLOCK + 1, BLOCK - 2, BLOCK - 2);
         }
         ctx.restore();
@@ -550,4 +622,5 @@ document.addEventListener('keydown', e => {
 restartBtn.addEventListener('click', init);
 
 initTheme();
+initSkin();
 init();

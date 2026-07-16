@@ -48,6 +48,11 @@
   --btn-text: #ffffff;
 }
 
+[data-skin="neon"] {
+  --board-bg: #000000;
+  --grid-color: #101018;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -195,6 +200,16 @@ body {
   border: 1px solid var(--board-border);
   background: var(--board-bg);
   border-radius: 4px;
+}
+
+.skin-select {
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 6px;
+  cursor: pointer;
 }
 
 /* ---- Controles ---- */
